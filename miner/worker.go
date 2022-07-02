@@ -19,6 +19,7 @@ package miner
 import (
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/experiment"
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -739,6 +740,15 @@ func (w *worker) resultLoop() {
 			log.Info("Successfully sealed new block", "number", block.Number(), "sealhash", sealhash, "hash", hash,
 				"elapsed", common.PrettyDuration(time.Since(task.createdAt)))
 
+			// experiment mod modification
+			{
+				txHashs := make([]string, 0)
+				for _, v := range block.Transactions() {
+					txHashs = append(txHashs, v.Hash().Hex())
+				}
+				_ = experiment.Record(map[string]interface{}{"Type": "BlockSeal", "TransactionHashs": txHashs})
+			}
+
 			// Broadcast the block and announce chain insertion event
 			w.mux.Post(core.NewMinedBlockEvent{Block: block})
 
@@ -1135,7 +1145,16 @@ func (w *worker) commitWork(interrupt *int32, noempty bool, timestamp int64) {
 // Note the assumption is held that the mutation is allowed to the passed env, do
 // the deep copy first.
 func (w *worker) commit(env *environment, interval func(), update bool, start time.Time) error {
-	if w.isRunning() {
+
+	if w.isRunning() {	
+		// experiment mod modification
+		{
+			txHashs := make([]string, 0)
+			for _, v := range w.current.txs {
+				txHashs = append(txHashs, v.Hash().Hex())
+			}
+			_ = experiment.Record(map[string]interface{}{"Type": "BlockGen", "TransactionHashs": txHashs})
+		}
 		if interval != nil {
 			interval()
 		}

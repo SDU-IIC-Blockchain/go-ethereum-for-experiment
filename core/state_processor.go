@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"encoding/hex"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc"
@@ -27,6 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/experiment"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -142,12 +144,35 @@ func applyTransaction(msg types.Message, config *params.ChainConfig, bc ChainCon
 // for the transaction, gas used and an error if the transaction failed,
 // indicating the block was invalid.
 func ApplyTransaction(config *params.ChainConfig, bc ChainContext, author *common.Address, gp *GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, error) {
-	msg, err := tx.AsMessage(types.MakeSigner(config, header.Number), header.BaseFee)
+	msg, err := tx.AsMessage(types.MakeSigner(config, header.Number), header.BaseFee)	
+	// experiment mod modification
+	{
+		_ = experiment.Record(map[string]interface{}{"Type": "TransactionBegin", "TransactionHash": tx.Hash()})
+	}
 	if err != nil {
 		return nil, err
 	}
 	// Create a new context to be used in the EVM environment
 	blockContext := NewEVMBlockContext(header, bc, author)
 	vmenv := vm.NewEVM(blockContext, vm.TxContext{}, statedb, config, cfg)
-	return applyTransaction(msg, config, bc, author, gp, statedb, header.Number, header.Hash(), tx, usedGas, vmenv)
+	receipt, err := applyTransaction(msg, config, bc, author, gp, statedb, header.Number, header.Hash(), tx, usedGas, vmenv)
+	// experiment mod modification
+	{
+		loggingUnit := map[string]interface{}{
+			"Type":            "TransactionEnd",
+			"TransactionHash": tx.Hash(),
+			"From":            msg.From().Hex(),
+			"To":              "",
+			"DataFirst4Byte":  hex.EncodeToString(msg.Data()[0:4]),
+		}
+		// msg.To could be nil
+		to := msg.To()
+		if to != nil {
+			loggingUnit["To"] = to.Hex()
+		}
+
+		_ = experiment.Record(loggingUnit)
+	}
+
+	return receipt, err
 }

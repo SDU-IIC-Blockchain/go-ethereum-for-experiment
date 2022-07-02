@@ -970,6 +970,13 @@ var (
 		Value:    metrics.DefaultConfig.InfluxDBOrganization,
 		Category: flags.MetricsCategory,
 	}
+
+	// experiment mod modification
+	ModExperimentOutputFlag = &cli.StringFlag{
+		Name:  "experiment.output",
+		Usage: "The output file of experiment log.",
+		Value: "",
+	}
 )
 
 var (

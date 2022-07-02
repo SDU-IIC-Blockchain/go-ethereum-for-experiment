@@ -19,6 +19,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/experiment"
 	"os"
 	"sort"
 	"strconv"
@@ -202,6 +203,11 @@ var (
 		utils.MetricsInfluxDBBucketFlag,
 		utils.MetricsInfluxDBOrganizationFlag,
 	}
+
+	// experiment mod modification
+	ModExperimentFlags = []cli.Flag{
+		utils.ModExperimentOutputFlag,
+	}
 )
 
 func init() {
@@ -250,6 +256,9 @@ func init() {
 		debug.Flags,
 		metricsFlags,
 	)
+
+	// experiment mod modification
+	app.Flags = append(app.Flags, ModExperimentFlags...)
 
 	app.Before = func(ctx *cli.Context) error {
 		flags.MigrateGlobalFlags(ctx)
@@ -358,6 +367,10 @@ func geth(ctx *cli.Context) error {
 // it unlocks any requested accounts, and starts the RPC/IPC interfaces and the
 // miner.
 func startNode(ctx *cli.Context, stack *node.Node, backend ethapi.Backend, isConsole bool) {
+	// experiment mod modification
+	{
+		experiment.InitOutputFile(ctx.String(utils.ModExperimentOutputFlag.Name))
+	}
 	debug.Memsize.Add("node", stack)
 
 	// Start up the node itself
